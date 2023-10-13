@@ -1,0 +1,62 @@
+#!/bin/bash
+
+# Check if screen is installed, and install if not
+if ! command -v screen &> /dev/null; then
+    if command -v apt-get &> /dev/null; then
+        echo "screen is not installed. Installing it..."
+        sudo apt-get update
+        sudo apt-get install screen -y
+    elif command -v yum &> /dev/null; then
+        echo "screen is not installed. Installing it..."
+        sudo yum update
+        sudo yum install screen -y
+    else
+        echo "Unable to install screen. Please install it manually and run the script again."
+        exit 1
+    fi
+fi
+
+# Prompt the user to enter the remote IP
+read -p "Enter the remote IP (e.g., 23.95.94.130): " REMOTE_IP
+
+# List VMs and exclude the header line
+CTID_LIST=$(vzlist -a | awk '{print $1}' | grep -v CTID)
+
+# Start a screen session
+screen -dmS vm_management
+
+# Run the VM management script inside the screen session
+screen -S vm_management -X stuff "
+for CTID in $CTID_LIST; do
+    echo 'Managing VM $CTID'
+    
+    vzctl stop $CTID >> ovztransfer.log 2>&1
+    
+    CONFIG_FILE=\"/etc/sysconfig/vz-scripts/$CTID.conf\"
+    if [ -f \$CONFIG_FILE ]; then
+        if grep -q 'DISABLED=\"yes\"' \$CONFIG_FILE; then
+            sed -i 's/DISABLED=\"yes\"/DISABLED=\"no\"/' \$CONFIG_FILE
+            echo 'VM $CTID has been enabled.' >> ovztransfer.log 2>&1
+        else
+            echo 'VM $CTID is already enabled.' >> ovztransfer.log 2>&1
+        fi
+    else
+        echo 'Configuration file \$CONFIG_FILE not found.' >> ovztransfer.log 2>&1
+    fi
+
+    ./ovztransfer.sh \$REMOTE_IP \$CTID:\$CTID >> ovztransfer.log 2>&1
+
+    if [ \$? -eq 0 ]; then
+        echo 'Transfer for VM $CTID was successful.'
+    else
+        echo 'Transfer for VM $CTID failed. Skipping VM.' >> ovztransfer.log 2>&1
+        continue
+    fi
+
+    vzctl start $CTID >> ovztransfer.log 2>&1
+
+    echo 'VM $CTID management completed.' >> ovztransfer.log
+done
+"
+
+echo "VM management script is running in a detached screen session."
