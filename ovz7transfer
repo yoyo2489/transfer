@@ -1,34 +1,53 @@
 #!/bin/bash
 
+# Function to check and install a package if it's not available
+install_package() {
+    if ! command -v $1 &> /dev/null; then
+        if command -v apt-get &> /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y $1
+        elif command -v yum &> /dev/null; then
+            sudo yum install -y $1
+        else
+            echo "Please install $1 manually, or use an appropriate package manager for your system."
+            exit 1
+        fi
+    fi
+}
+
+# Check and install essential packages
+install_package wget
+install_package sshpass
+
 # Prompt the user to enter the remote IP and port
 read -p "Enter the remote IP: " REMOTE_IP
 read -p "Enter the SSH port (default is 22): " SSH_PORT
 SSH_PORT=${SSH_PORT:-22}  # Use port 22 by default if no port is specified
 
-# Add your SSH key to the remote host
-ssh-copy-id -p $SSH_PORT root@$REMOTE_IP
+# Prompt the user for the password to use for SSH key copy
+read -s -p "Enter your password: " PASSWORD
+echo
+
+# Add your SSH key to the remote host using sshpass
+sshpass -p $PASSWORD ssh-copy-id -p $SSH_PORT root@$REMOTE_IP
+
+# Check if the key copy was successful
+if [ $? -eq 0 ]; then
+    echo "SSH key added successfully to the remote host."
+else
+    echo "Failed to add the SSH key. Please check your password and try again."
+    exit 1
+fi
 
 # Download the ovztransfer.sh script and save it as ovztransfer.sh
+install_package wget  # Make sure wget is installed
 wget -O ovztransfer.sh "https://src.openvz.org/projects/OVZL/repos/ovztransfer/raw/ovztransfer.sh?at=refs%2Fheads%2Fmaster"
 
 # Assign execute permissions to the script
 chmod +x ovztransfer.sh
 
 # Check if screen is installed, and install if not
-if ! command -v screen &> /dev/null; then
-    if command -v apt-get &> /dev/null; then
-        echo "screen is not installed. Installing it..."
-        sudo apt-get update
-        sudo apt-get install screen -y
-    elif command -v yum &> /dev/null; then
-        echo "screen is not installed. Installing it..."
-        sudo yum update
-        sudo yum install screen -y
-    else
-        echo "Unable to install screen. Please install it manually and run the script again."
-        exit 1
-    fi
-fi
+install_package screen
 
 # List VMs and exclude the header line
 CTID_LIST=$(vzlist -a | awk '{print $1}' | grep -v CTID)
