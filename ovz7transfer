@@ -50,17 +50,10 @@ wget -O ovztransfer.sh "https://src.openvz.org/projects/OVZL/repos/ovztransfer/r
 # Assign execute permissions to the script
 chmod +x ovztransfer.sh
 
-# Check if screen is installed, and install if not
-install_package screen
-
 # List VMs and exclude the header line
 CTID_LIST=$(vzlist -a | awk '{print $1}' | grep -v CTID)
 
-# Start a screen session
-screen -dmS vm_management
-
-# Run the VM management script inside the screen session
-screen -S vm_management -X stuff '
+# Run the VM management script for each CTID
 for CTID in $CTID_LIST; do
     echo "Managing VM $CTID"
 
@@ -91,6 +84,5 @@ for CTID in $CTID_LIST; do
 
     echo "VM $CTID management completed." >> ovztransfer.log
 done
-'
 
-echo "VM management script is running in a detached screen session."
+echo "VM management script completed."
