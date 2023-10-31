@@ -18,30 +18,12 @@ install_package() {
 # Check and install essential packages
 install_package wget
 
-# Generate an SSH key pair if one doesn't exist
-if [ ! -f ~/.ssh/id_rsa ]; then
-    ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
-fi
+
 
 # Prompt the user to enter the remote IP and port
 read -p "Enter the remote IP: " REMOTE_IP
 read -p "Enter the SSH port (default is 22): " SSH_PORT
 SSH_PORT=${SSH_PORT:-22}  # Use port 22 by default if no port is specified
-
-# Prompt the user for the password to use for SCP
-read -s -p "Enter your password for SCP: " SCP_PASSWORD
-echo
-
-# Copy the SSH public key to the remote host using SCP
-scp -P $SSH_PORT ~/.ssh/id_rsa.pub root@$REMOTE_IP:~/.ssh/authorized_keys
-
-# Check if the key copy was successful
-if [ $? -eq 0 ]; then
-    echo "SSH key added successfully to the remote host."
-else
-    echo "Failed to add the SSH key. Please check your password and try again."
-    exit 1
-fi
 
 # Download the ovztransfer.sh script and save it as ovztransfer.sh
 install_package wget  # Make sure wget is installed
