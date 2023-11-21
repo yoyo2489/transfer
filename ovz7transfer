@@ -13,6 +13,10 @@ chmod +x ovztransfer.sh
 # List VMs and exclude the header line
 CTID=$(vzlist -a | awk '{print $1}' | grep -v CTID)
 
+# Stop VMs
+
+vzctl stop $CTID
+
 # Run the VM management script for each CTID
 ./ovztransfer.sh $REMOTE_IP $CTID:$CTID
 
